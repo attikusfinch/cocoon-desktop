@@ -1,0 +1,209 @@
+@import "tailwindcss";
+
+@theme {
+  /* Cocoon dark palette: deep ink + warm egg-gold accent */
+  --color-ink-950: #0a0d13;
+  --color-ink-900: #0e121b;
+  --color-ink-850: #121724;
+  --color-ink-800: #161c2c;
+  --color-ink-700: #1f2638;
+  --color-ink-600: #2a3247;
+  --color-ink-500: #3a445d;
+
+  --color-fg: #e9ecf4;
+  --color-fg-muted: #97a0b5;
+  --color-fg-faint: #5d6679;
+
+  --color-gold-300: #ffd98a;
+  --color-gold-400: #f7c45e;
+  --color-gold-500: #eaa83b;
+  --color-gold-600: #cf8c25;
+
+  --color-ton-400: #58a6ff;
+  --color-ton-500: #2f81f7;
+
+  --color-ok: #3fb950;
+  --color-warn: #d29922;
+  --color-err: #f85149;
+
+  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-ink-950);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  user-select: none;
+}
+
+.selectable,
+input,
+textarea {
+  user-select: text;
+}
+
+/* Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink-600) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--color-ink-600);
+  border-radius: 4px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Markdown body (chat messages) */
+.md {
+  line-height: 1.65;
+  word-break: break-word;
+}
+.md > *:first-child {
+  margin-top: 0;
+}
+.md > *:last-child {
+  margin-bottom: 0;
+}
+.md p {
+  margin: 0.55em 0;
+}
+.md h1,
+.md h2,
+.md h3,
+.md h4 {
+  margin: 1em 0 0.45em;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.md h1 {
+  font-size: 1.25em;
+}
+.md h2 {
+  font-size: 1.15em;
+}
+.md h3 {
+  font-size: 1.05em;
+}
+.md ul,
+.md ol {
+  margin: 0.55em 0;
+  padding-left: 1.4em;
+}
+.md li {
+  margin: 0.2em 0;
+}
+.md blockquote {
+  margin: 0.6em 0;
+  padding: 0.1em 0.9em;
+  border-left: 3px solid var(--color-gold-600);
+  color: var(--color-fg-muted);
+}
+.md hr {
+  border: 0;
+  border-top: 1px solid var(--color-ink-600);
+  margin: 1em 0;
+}
+.md a {
+  color: var(--color-ton-400);
+  text-decoration: none;
+}
+.md a:hover {
+  text-decoration: underline;
+}
+.md code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--color-ink-800);
+  border: 1px solid var(--color-ink-700);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+}
+.md pre {
+  margin: 0.7em 0;
+  padding: 0.85em 1em;
+  background: var(--color-ink-900);
+  border: 1px solid var(--color-ink-700);
+  border-radius: 10px;
+  overflow-x: auto;
+}
+.md pre code {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 0.875em;
+  line-height: 1.55;
+}
+.md .code-lang {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.7em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-fg-faint);
+  margin-bottom: 0.5em;
+}
+
+/* Streaming caret */
+.caret::after {
+  content: "▍";
+  color: var(--color-gold-400);
+  animation: caret-blink 1s steps(2) infinite;
+}
+@keyframes caret-blink {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Subtle fade-in for messages and screens */
+.fade-in {
+  animation: fade-in 0.25s ease-out;
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Pulsing status dot */
+.dot-pulse {
+  animation: dot-pulse 1.6s ease-in-out infinite;
+}
+@keyframes dot-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
