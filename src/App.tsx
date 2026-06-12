@@ -86,11 +86,14 @@ export default function App() {
 
   // The runner auto-starts the engine on boot when a config exists, but in
   // the very first session the config appears only after onboarding — kick
-  // the engine once the wallet is funded.
+  // the engine once the wallet is funded or an existing channel is found
+  // (an active channel already holds the stake, no wallet balance needed).
   const engineKick = useRef(0);
   useEffect(() => {
     if (!state || state.engine.running || state.engine.error) return;
-    if (!state.has_config || state.wallet?.funded !== true) return;
+    if (!state.has_config) return;
+    const canConnect = state.wallet?.funded === true || state.wallet?.channel?.active === true;
+    if (!canConnect) return;
     if (Date.now() - engineKick.current < 15000) return;
     engineKick.current = Date.now();
     engineStart().then(
@@ -160,7 +163,7 @@ export default function App() {
   if (state === null && online === null) {
     return (
       <div className="flex h-full items-center justify-center bg-ink-950">
-        <Spinner className="h-6 w-6 text-gold-400" />
+        <Spinner className="h-6 w-6 text-accent-400" />
       </div>
     );
   }

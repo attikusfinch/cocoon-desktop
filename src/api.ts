@@ -10,7 +10,12 @@ import type {
   WalletBackup,
 } from "./types";
 
-export const RUNNER_URL = "http://127.0.0.1:10000";
+/** Dev override (browser only): ?runner=http://127.0.0.1:10010 */
+export const RUNNER_URL =
+  (typeof location !== "undefined" &&
+    !("__TAURI_INTERNALS__" in window) &&
+    new URLSearchParams(location.search).get("runner")) ||
+  "http://127.0.0.1:10000";
 
 /** Dev-only mock (browser: append ?mock=1): fakes a ready proxy session and
  * streams a canned reply so the chat UI can be exercised without spending

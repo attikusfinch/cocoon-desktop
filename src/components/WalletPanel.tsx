@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { channelRequest, formatNanoTON, getBackup, shortAddress } from "../api";
-import type { AppState, RunnerStats, WalletBackup } from "../types";
+import type { AppState, ChannelState, RunnerStats, WalletBackup } from "../types";
 import { BackupReveal } from "./Onboarding";
 import { FundingCard } from "./Funding";
 import { Button, Card, CopyButton, ErrorNote, Mono, Pill, SectionTitle } from "./ui";
@@ -42,8 +42,15 @@ export function WalletPanel(props: Props) {
                     <div className="mt-1 text-xs text-warn">баланс недоступен: {wallet.balance_error}</div>
                   )}
                 </div>
-                {wallet.funded !== undefined &&
-                  (wallet.funded ? <Pill tone="ok">профинансирован</Pill> : <Pill tone="warn">нужно пополнение</Pill>)}
+                {wallet.channel?.active ? (
+                  <Pill tone="ok">канал открыт</Pill>
+                ) : wallet.funded !== undefined ? (
+                  wallet.funded ? (
+                    <Pill tone="ok">профинансирован</Pill>
+                  ) : (
+                    <Pill tone="warn">нужно пополнение</Pill>
+                  )
+                ) : null}
               </div>
 
               <div className="mt-5 grid gap-3">
@@ -65,9 +72,9 @@ export function WalletPanel(props: Props) {
               {backupErr && <div className="mt-3"><ErrorNote>{backupErr}</ErrorNote></div>}
             </Card>
 
-            {wallet.funded === false && <FundingCard wallet={wallet} />}
+            {wallet.funded === false && !wallet.channel?.active && <FundingCard wallet={wallet} />}
 
-            <ChannelsCard stats={props.stats} />
+            <ChannelsCard stats={props.stats} stateChannel={wallet.channel} />
           </>
         )}
       </div>
@@ -87,7 +94,7 @@ function AddressRow(props: { label: string; value: string }) {
   );
 }
 
-function ChannelsCard(props: { stats: RunnerStats | null }) {
+function ChannelsCard(props: { stats: RunnerStats | null; stateChannel?: ChannelState }) {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -116,7 +123,24 @@ function ChannelsCard(props: { stats: RunnerStats | null }) {
         закрытия.
       </p>
 
-      {channels.length === 0 ? (
+      {channels.length === 0 && props.stateChannel ? (
+        <div className="mt-4 rounded-lg border border-ink-700 bg-ink-900 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <Mono className="truncate">{shortAddress(props.stateChannel.address, 10, 8)}</Mono>
+            <Pill tone={props.stateChannel.active ? "ok" : "muted"}>
+              {props.stateChannel.active ? "активен" : props.stateChannel.state}
+            </Pill>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-[12.5px] text-fg-muted sm:grid-cols-3">
+            <Stat label="баланс канала" value={`${props.stateChannel.balance_ton} TON`} />
+            <Stat label="стейк" value={`${props.stateChannel.stake_ton} TON`} />
+            <Stat label="израсходовано токенов" value={props.stateChannel.tokens_used.toLocaleString()} />
+          </div>
+          <p className="mt-3 text-xs text-fg-faint">
+            Управление каналом (пополнение, закрытие, вывод) станет доступно после подключения к сети.
+          </p>
+        </div>
+      ) : channels.length === 0 ? (
         <div className="mt-3 text-[13px] text-fg-faint">
           Каналов пока нет — они создаются автоматически при первом подключении к прокси.
         </div>

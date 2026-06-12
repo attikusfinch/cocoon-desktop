@@ -137,14 +137,16 @@ export function ChatView(props: Props) {
   const setupGate = useMemo(() => {
     if (!props.state) return null;
     if (props.state.wallet_error) return <ErrorNote>{props.state.wallet_error}</ErrorNote>;
-    if (wallet && !funded) return <FundingCard wallet={wallet} />;
+    // An active payment channel means the stake already sits on-chain — no
+    // wallet funding required even when the wallet balance is small.
+    if (wallet && !funded && !wallet.channel?.active) return <FundingCard wallet={wallet} />;
     if (props.state.engine.error) {
       return <ErrorNote>Ядро не запустилось: {props.state.engine.error}</ErrorNote>;
     }
     if (!props.ready) {
       return (
         <div className="flex items-center gap-3 rounded-xl border border-ink-700 bg-ink-850 px-4 py-3 text-[13px] text-fg-muted">
-          <Spinner className="h-4 w-4 text-gold-400" />
+          <Spinner className="h-4 w-4 text-accent-400" />
           {props.connecting
             ? "Подключаемся к сети Cocoon: проверяем аттестацию прокси и платёжный канал…"
             : "Запускаем локальное ядро…"}
@@ -199,7 +201,7 @@ export function ChatView(props: Props) {
                 <div className="md selectable caret" dangerouslySetInnerHTML={{ __html: renderMarkdown(live.visible) }} />
               ) : (
                 <div className="flex items-center gap-2 text-[13px] text-fg-muted">
-                  <Spinner className="h-3.5 w-3.5 text-gold-400" />
+                  <Spinner className="h-3.5 w-3.5 text-accent-400" />
                   {live.thinkingLive ? "Модель размышляет…" : "Ждём ответ сети…"}
                 </div>
               )}
@@ -217,7 +219,7 @@ export function ChatView(props: Props) {
             </div>
           )}
           {setupGate ?? (
-            <div className="rounded-2xl border border-ink-600 bg-ink-850 p-2 shadow-[0_8px_30px_rgba(0,0,0,0.35)] focus-within:border-gold-500/50">
+            <div className="rounded-2xl border border-ink-600 bg-ink-850 p-2 shadow-[0_8px_30px_rgba(0,0,0,0.35)] focus-within:border-accent-500/50">
               <div className="flex items-end gap-2">
                 <textarea
                   ref={inputRef}
@@ -247,7 +249,7 @@ export function ChatView(props: Props) {
                     onClick={() => void send()}
                     disabled={!input.trim()}
                     title="Отправить"
-                    className="mb-1 mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gold-500 text-ink-950 transition-colors hover:bg-gold-400 disabled:opacity-35"
+                    className="btn-brand mb-1 mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white disabled:opacity-35"
                   >
                     <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="2.4">
                       <path d="M12 19V6M6 11l6-6 6 6" strokeLinecap="round" strokeLinejoin="round" />
@@ -268,7 +270,7 @@ function RoleLabel(props: { role: "user" | "assistant" }) {
     <div className="mb-1.5 flex items-center gap-2">
       <span
         className={`text-[11px] font-semibold uppercase tracking-[0.1em] ${
-          props.role === "user" ? "text-ton-400" : "text-gold-400"
+          props.role === "user" ? "text-accent-400" : "text-violet-400"
         }`}
       >
         {props.role === "user" ? "Вы" : "Cocoon"}
@@ -298,7 +300,7 @@ function Message(props: { msg: ChatMessage }) {
         <div className="mt-1.5 flex gap-3 text-[11.5px] text-fg-faint">
           {m.model && <span>{m.model.split("/").pop()}</span>}
           {m.usage?.total_tokens ? <span>{m.usage.total_tokens} токенов</span> : null}
-          {cost && <span className="text-gold-400/80">{cost} TON</span>}
+          {cost && <span className="text-violet-400/90">{cost} TON</span>}
         </div>
       )}
     </div>
@@ -334,7 +336,7 @@ function ModelPicker(props: {
       value={props.value}
       onChange={(e) => props.onChange(e.target.value)}
       disabled={props.disabled}
-      className="max-w-[220px] cursor-pointer truncate rounded-lg border border-ink-600 bg-ink-850 px-2.5 py-1.5 text-xs text-fg-muted outline-none transition-colors hover:text-fg focus:border-gold-500/60"
+      className="max-w-[220px] cursor-pointer truncate rounded-lg border border-ink-600 bg-ink-850 px-2.5 py-1.5 text-xs text-fg-muted outline-none transition-colors hover:text-fg focus:border-accent-500/60"
     >
       {props.models.map((m) => (
         <option key={m.id} value={m.id}>

@@ -53,7 +53,7 @@ export function Button(props: {
   const base =
     "inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-45";
   const kinds: Record<string, string> = {
-    primary: "bg-gold-500 text-ink-950 hover:bg-gold-400 active:bg-gold-600",
+    primary: "btn-brand text-white",
     ghost: "border border-ink-600 bg-transparent text-fg hover:bg-ink-800",
     danger: "border border-err/40 bg-err/10 text-err hover:bg-err/20",
   };
@@ -124,4 +124,4 @@ export function Field(props: { label: string; children: ReactNode }) {
 }
 
 export const inputCls =
-  "w-full rounded-lg border border-ink-600 bg-ink-900 px-3 py-2 text-sm text-fg outline-none transition-colors placeholder:text-fg-faint focus:border-gold-500/60";
+  "w-full rounded-lg border border-ink-600 bg-ink-900 px-3 py-2 text-sm text-fg outline-none transition-colors placeholder:text-fg-faint focus:border-accent-500/60";

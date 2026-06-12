@@ -168,7 +168,7 @@ export function BackupReveal(props: { backup: WalletBackup; onConfirm: () => voi
             type="checkbox"
             checked={confirmed}
             onChange={(e) => setConfirmed(e.target.checked)}
-            className="h-4 w-4 accent-gold-500"
+            className="h-4 w-4 accent-accent-500"
           />
           Я сохранил(а) фразу в надёжном месте
         </label>

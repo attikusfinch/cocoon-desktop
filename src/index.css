@@ -1,26 +1,30 @@
 @import "tailwindcss";
 
 @theme {
-  /* Cocoon dark palette: deep ink + warm egg-gold accent */
-  --color-ink-950: #0a0d13;
-  --color-ink-900: #0e121b;
-  --color-ink-850: #121724;
-  --color-ink-800: #161c2c;
-  --color-ink-700: #1f2638;
-  --color-ink-600: #2a3247;
-  --color-ink-500: #3a445d;
+  /* Official cocoon.org palette: deep navy + blue→violet neon gradient */
+  --color-ink-950: #010715;
+  --color-ink-900: #040c22;
+  --color-ink-850: #0a1430;
+  --color-ink-800: #111c40;
+  --color-ink-700: #1a2750;
+  --color-ink-600: #263767;
+  --color-ink-500: #354a85;
 
-  --color-fg: #e9ecf4;
-  --color-fg-muted: #97a0b5;
-  --color-fg-faint: #5d6679;
+  --color-fg: #eaedf6;
+  --color-fg-muted: #94ace0;
+  --color-fg-faint: #5b6c99;
 
-  --color-gold-300: #ffd98a;
-  --color-gold-400: #f7c45e;
-  --color-gold-500: #eaa83b;
-  --color-gold-600: #cf8c25;
+  --color-accent-300: #8ecbff;
+  --color-accent-400: #68beff;
+  --color-accent-500: #577bff;
+  --color-accent-600: #3f5fd6;
 
-  --color-ton-400: #58a6ff;
-  --color-ton-500: #2f81f7;
+  --color-violet-400: #a062ff;
+  --color-violet-500: #ba4cff;
+  --color-magenta-400: #d277ff;
+
+  --color-ton-400: #68beff;
+  --color-ton-500: #3088ff;
 
   --color-ok: #3fb950;
   --color-warn: #d29922;
@@ -28,6 +32,26 @@
 
   --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-mono: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+}
+
+/* Brand gradients (cocoon.org) */
+.btn-brand {
+  background: linear-gradient(135deg, #577bff 0%, #ba4cff 120%);
+}
+.btn-brand:hover {
+  filter: brightness(1.12);
+}
+.btn-brand:active {
+  filter: brightness(0.94);
+}
+.bar-brand {
+  background: linear-gradient(90deg, #3088ff 0%, #a062ff 70%, #d235ff 100%);
+}
+.text-brand {
+  background: linear-gradient(290deg, #d235ff 0%, #a062ff 30%, #3088ff 66%, #61d8ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 :root {
@@ -116,7 +140,7 @@ textarea {
 .md blockquote {
   margin: 0.6em 0;
   padding: 0.1em 0.9em;
-  border-left: 3px solid var(--color-gold-600);
+  border-left: 3px solid var(--color-violet-500);
   color: var(--color-fg-muted);
 }
 .md hr {
@@ -167,7 +191,7 @@ textarea {
 /* Streaming caret */
 .caret::after {
   content: "▍";
-  color: var(--color-gold-400);
+  color: var(--color-accent-400);
   animation: caret-blink 1s steps(2) infinite;
 }
 @keyframes caret-blink {

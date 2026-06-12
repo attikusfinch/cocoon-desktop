@@ -49,7 +49,7 @@ export function FundingCard(props: { wallet: WalletState; compact?: boolean }) {
             </div>
             <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-ink-700">
               <div
-                className="h-full rounded-full bg-gold-500 transition-all duration-700"
+                className="h-full rounded-full bg-accent-500 transition-all duration-700"
                 style={{ width: `${Math.min(100, pct)}%` }}
               />
             </div>

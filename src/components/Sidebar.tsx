@@ -33,9 +33,9 @@ export function Sidebar(props: Props) {
         <button
           type="button"
           onClick={props.onNewChat}
-          className="flex w-full items-center gap-2 rounded-lg border border-ink-600 px-3 py-2 text-sm text-fg transition-colors hover:border-gold-500/40 hover:bg-ink-800"
+          className="flex w-full items-center gap-2 rounded-lg border border-ink-600 px-3 py-2 text-sm text-fg transition-colors hover:border-accent-500/40 hover:bg-ink-800"
         >
-          <span className="text-gold-400">+</span> Новый чат
+          <span className="text-accent-400">+</span> Новый чат
         </button>
       </div>
 

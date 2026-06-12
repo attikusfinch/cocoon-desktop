@@ -8,6 +8,17 @@ export type AppPaths = {
   runner_state_path: string;
 };
 
+export type ChannelState = {
+  address: string;
+  state: string;
+  active: boolean;
+  balance_nano: string;
+  balance_ton: string;
+  stake_nano: string;
+  stake_ton: string;
+  tokens_used: number;
+};
+
 export type WalletState = {
   owner_address: string;
   fund_address: string;
@@ -20,6 +31,9 @@ export type WalletState = {
   funded?: boolean;
   min_client_stake_nano?: string;
   min_client_stake_ton?: string;
+  /** Existing on-chain payment channel rediscovered from tx history. */
+  channel?: ChannelState;
+  channel_error?: string;
 };
 
 export type AppState = {
