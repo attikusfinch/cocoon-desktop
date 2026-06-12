@@ -1,6 +1,6 @@
 import { formatNanoTON } from "../api";
 import type { AppState, ChatSummary } from "../types";
-import logo from "../assets/CocoonEggLogo.webp";
+import logo from "../assets/egg.png";
 
 export type View = "chat" | "wallet" | "network" | "settings";
 

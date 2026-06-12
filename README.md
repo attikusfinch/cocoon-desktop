@@ -35,6 +35,20 @@ npm run tauri build
 Sidecar кладётся в `src-tauri/binaries/gocoon-runner-<target-triple>[.exe]`
 и не коммитится (генерируется из ../gocoon).
 
+## Релизы
+
+- Локально: `npm run sidecar` → `npm run tauri build` →
+  `src-tauri/target/release/bundle/{nsis,msi}/` (Windows) или `dmg/` (macOS).
+- CI (`.github/workflows/build.yml`): матрица Windows x64 + macOS
+  arm64/x86_64; собирает sidecar из attikusfinch/gocoon (ветка app-rework),
+  гоняет тесты ядра, выкладывает артефакты; тег `v*` создаёт draft-релиз.
+- macOS-сборки пока не подписаны (нужен Apple Developer аккаунт) — при
+  первом запуске Gatekeeper попросит подтверждение через «Открыть» в
+  контекстном меню.
+- Иконки: `node scripts/make-icons.cjs` вырезает яйцо из брендовой
+  графики и обновляет `app-icon.png` + `src/assets/egg.png`; затем
+  `npm run tauri icon app-icon.png`.
+
 ## Как это работает
 
 - Rust-слой (src-tauri/src/lib.rs) управляет жизненным циклом

@@ -4,7 +4,7 @@ import { renderMarkdown } from "../markdown";
 import type { AppState, ChatDoc, ChatMessage, ModelInfo } from "../types";
 import { FundingCard } from "./Funding";
 import { ErrorNote, Pill, Spinner } from "./ui";
-import logo from "../assets/CocoonEggLogo.webp";
+import logo from "../assets/egg.png";
 
 type Props = {
   state: AppState | null;

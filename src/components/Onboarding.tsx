@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createWallet, importWallet } from "../api";
 import type { AppState, WalletBackup } from "../types";
 import { Button, Card, CopyButton, ErrorNote, Field, inputCls } from "./ui";
-import logo from "../assets/CocoonEggLogo.webp";
+import logo from "../assets/egg.png";
 
 type Props = {
   /** Runner API reachable? null = still probing. */
