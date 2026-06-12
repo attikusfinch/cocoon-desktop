@@ -58,34 +58,28 @@ fn runner_status(app: AppHandle, state: State<RunnerState>) -> Result<RunnerStat
     })
 }
 
-#[tauri::command]
-fn runner_start(app: AppHandle, state: State<RunnerState>) -> Result<RunnerStatus, String> {
+// spawn_runner launches the gocoon-runner sidecar in --data-dir mode: its
+// HTTP API serves wallet onboarding even before a config exists, and it
+// starts the inference engine itself once onboarding completes.
+fn spawn_runner(app: &AppHandle) -> Result<(), String> {
+    let state: State<RunnerState> = app.state();
     {
         let child = state.child.lock().unwrap();
         if child.is_some() {
-            return runner_status(app.clone(), app.state());
+            return Ok(());
         }
     }
 
-    let dir = cocoon_data_dir(&app)?;
-    let config_path = dir.join("client-config.json");
-    if !config_path.exists() {
-        return Err(format!(
-            "config not found: {} (wallet onboarding has not been completed yet)",
-            config_path.display()
-        ));
-    }
-
+    let dir = cocoon_data_dir(app)?;
     let command = app
         .shell()
         .sidecar("gocoon-runner")
         .map_err(|e| e.to_string())?
-        .args(["--config", &config_path.to_string_lossy(), "-v3"])
-        .env("GOCOON_DATA_DIR", dir.to_string_lossy().into_owned());
+        .args(["--data-dir", &dir.to_string_lossy(), "-v2"]);
 
     let (mut rx, child) = command.spawn().map_err(|e| e.to_string())?;
     *state.child.lock().unwrap() = Some(child);
-    push_log(&app, "[app] gocoon-runner started".into());
+    push_log(app, "[app] gocoon-runner started".into());
 
     let app_for_events = app.clone();
     tauri::async_runtime::spawn(async move {
@@ -113,7 +107,12 @@ fn runner_start(app: AppHandle, state: State<RunnerState>) -> Result<RunnerStatu
             }
         }
     });
+    Ok(())
+}
 
+#[tauri::command]
+fn runner_start(app: AppHandle) -> Result<RunnerStatus, String> {
+    spawn_runner(&app)?;
     runner_status(app.clone(), app.state())
 }
 
@@ -143,6 +142,13 @@ pub fn run() {
             runner_stop,
             runner_logs
         ])
+        .setup(|app| {
+            let handle = app.handle().clone();
+            if let Err(err) = spawn_runner(&handle) {
+                push_log(&handle, format!("[app] runner autostart failed: {err}"));
+            }
+            Ok(())
+        })
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
         .run(|app, event| {
