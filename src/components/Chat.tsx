@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { streamChatCompletion, usageCostTON, type StreamUpdate } from "../api";
 import { renderMarkdown } from "../markdown";
 import type { AppState, ChatDoc, ChatMessage, ModelInfo } from "../types";
@@ -23,6 +23,7 @@ export function ChatView(props: Props) {
   const [busy, setBusy] = useState(false);
   const [live, setLive] = useState<StreamUpdate | null>(null);
   const [model, setModel] = useState<string>("default");
+  const [sendError, setSendError] = useState<string | null>(null);
   const liveRef = useRef<StreamUpdate | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -54,8 +55,6 @@ export function ChatView(props: Props) {
     inputRef.current?.focus();
   }, [props.chat?.id]);
 
-  const [sendError, setSendError] = useState<string | null>(null);
-
   const send = async () => {
     const text = input.trim();
     if (!text || busy || !props.ready) return;
@@ -66,7 +65,7 @@ export function ChatView(props: Props) {
     let doc = props.chat;
     try {
       if (!doc) {
-        doc = await props.onCreateChat(text.length > 48 ? text.slice(0, 48) + "…" : text, model);
+        doc = await props.onCreateChat(text.length > 48 ? text.slice(0, 48) + "..." : text, model);
       }
     } catch (e) {
       setSendError(String(e instanceof Error ? e.message : e));
@@ -127,7 +126,7 @@ export function ChatView(props: Props) {
 
   const stop = () => abortRef.current?.abort();
 
-  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       void send();
@@ -137,7 +136,7 @@ export function ChatView(props: Props) {
   const setupGate = useMemo(() => {
     if (!props.state) return null;
     if (props.state.wallet_error) return <ErrorNote>{props.state.wallet_error}</ErrorNote>;
-    // An active payment channel means the stake already sits on-chain — no
+    // An active payment channel means the stake already sits on-chain, no
     // wallet funding required even when the wallet balance is small.
     if (wallet && !funded && !wallet.channel?.active) return <FundingCard wallet={wallet} />;
     if (props.state.engine.error) {
@@ -148,8 +147,8 @@ export function ChatView(props: Props) {
         <div className="flex items-center gap-3 rounded-xl border border-ink-700 bg-ink-850 px-4 py-3 text-[13px] text-fg-muted">
           <Spinner className="h-4 w-4 text-accent-400" />
           {props.connecting
-            ? "Подключаемся к сети Cocoon: проверяем аттестацию прокси и платёжный канал…"
-            : "Запускаем локальное ядро…"}
+            ? "Подключаемся к сети Cocoon: проверяем аттестацию прокси и платежный канал..."
+            : "Запускаем локальное ядро..."}
         </div>
       );
     }
@@ -167,7 +166,9 @@ export function ChatView(props: Props) {
         {props.ready ? (
           <Pill tone="ok">в сети</Pill>
         ) : props.connecting ? (
-          <Pill tone="warn" pulse>подключение</Pill>
+          <Pill tone="warn" pulse>
+            подключение
+          </Pill>
         ) : (
           <Pill tone="muted">офлайн</Pill>
         )}
@@ -181,8 +182,7 @@ export function ChatView(props: Props) {
               <img src={logo} alt="" className="h-16 w-16 opacity-90" draggable={false} />
               <h2 className="mt-4 text-lg font-semibold">Чем помочь?</h2>
               <p className="mt-1.5 max-w-sm text-[13px] leading-relaxed text-fg-muted">
-                Запросы выполняются в TEE-анклавах сети Cocoon и оплачиваются
-                с вашего кошелька за фактические токены.
+                Запросы выполняются в TEE-анклавах сети Cocoon и оплачиваются с вашего кошелька за фактические токены.
               </p>
             </div>
           )}
@@ -194,15 +194,13 @@ export function ChatView(props: Props) {
           {live && (
             <div className="fade-in">
               <RoleLabel role="assistant" />
-              {live.thinking.length > 0 && (
-                <ThinkingBlocks blocks={live.thinking} live={live.thinkingLive} />
-              )}
+              {live.thinking.length > 0 && <ThinkingBlocks blocks={live.thinking} live={live.thinkingLive} />}
               {live.visible ? (
                 <div className="md selectable caret" dangerouslySetInnerHTML={{ __html: renderMarkdown(live.visible) }} />
               ) : (
                 <div className="flex items-center gap-2 text-[13px] text-fg-muted">
                   <Spinner className="h-3.5 w-3.5 text-accent-400" />
-                  {live.thinkingLive ? "Модель размышляет…" : "Ждём ответ сети…"}
+                  {live.thinkingLive ? "Модель размышляет..." : "Ждем ответ сети..."}
                 </div>
               )}
             </div>
@@ -225,7 +223,7 @@ export function ChatView(props: Props) {
                   ref={inputRef}
                   rows={1}
                   value={input}
-                  placeholder="Спросите что-нибудь…  (Enter — отправить, Shift+Enter — новая строка)"
+                  placeholder="Спросите что-нибудь...  (Enter - отправить, Shift+Enter - новая строка)"
                   onChange={(e) => {
                     setInput(e.target.value);
                     e.target.style.height = "auto";
@@ -282,6 +280,8 @@ function RoleLabel(props: { role: "user" | "assistant" }) {
 function Message(props: { msg: ChatMessage }) {
   const m = props.msg;
   const cost = usageCostTON(m.usage);
+  const hasMeta = m.role === "assistant" && (m.model || m.usage?.total_tokens || cost);
+
   return (
     <div className="fade-in">
       <RoleLabel role={m.role} />
@@ -293,17 +293,51 @@ function Message(props: { msg: ChatMessage }) {
       ) : (
         <div className="md selectable" dangerouslySetInnerHTML={{ __html: renderMarkdown(m.content) }} />
       )}
-      {m.error && (
-        <div className="mt-2 text-[12.5px] text-err selectable">⚠ {m.error}</div>
-      )}
-      {m.role === "assistant" && (m.usage?.total_tokens || cost) && (
-        <div className="mt-1.5 flex gap-3 text-[11.5px] text-fg-faint">
-          {m.model && <span>{m.model.split("/").pop()}</span>}
-          {m.usage?.total_tokens ? <span>{m.usage.total_tokens} токенов</span> : null}
-          {cost && <span className="text-violet-400/90">{cost} TON</span>}
-        </div>
-      )}
+      {m.error && <div className="mt-2 text-[12.5px] text-err selectable">Ошибка: {m.error}</div>}
+      <div className="mt-1.5 flex min-h-6 items-center gap-3 text-[11.5px] text-fg-faint">
+        {hasMeta && (
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            {m.model && <span className="truncate">{m.model.split("/").pop()}</span>}
+            {m.usage?.total_tokens ? <span>{m.usage.total_tokens} токенов</span> : null}
+            {cost && <span className="text-violet-400/90">{cost} TON</span>}
+          </div>
+        )}
+        {!hasMeta && <div className="flex-1" />}
+        <MessageCopyButton text={m.content} />
+      </div>
     </div>
+  );
+}
+
+function MessageCopyButton(props: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const disabled = props.text.trim().length === 0;
+
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      title={copied ? "Скопировано" : "Копировать"}
+      onClick={() => {
+        if (disabled) return;
+        void navigator.clipboard.writeText(props.text).then(() => {
+          setCopied(true);
+          window.setTimeout(() => setCopied(false), 1400);
+        });
+      }}
+      className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-fg-faint opacity-75 transition-colors hover:bg-ink-800 hover:text-fg hover:opacity-100 disabled:opacity-20"
+    >
+      {copied ? (
+        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="m5 13 4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <rect x="9" y="9" width="10" height="10" rx="2" />
+          <path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" strokeLinecap="round" />
+        </svg>
+      )}
+    </button>
   );
 }
 
@@ -311,7 +345,7 @@ function ThinkingBlocks(props: { blocks: string[]; live?: boolean }) {
   return (
     <details className="group mb-2 rounded-lg border border-ink-700 bg-ink-900/60">
       <summary className="cursor-pointer select-none px-3 py-1.5 text-[12px] text-fg-faint transition-colors hover:text-fg-muted">
-        {props.live ? "Размышляет…" : "Размышления модели"}
+        {props.live ? "Размышляет..." : "Размышления модели"}
       </summary>
       <div className="space-y-2 border-t border-ink-800 px-3 py-2">
         {props.blocks.map((b, i) => (
@@ -340,7 +374,7 @@ function ModelPicker(props: {
     >
       {props.models.map((m) => (
         <option key={m.id} value={m.id}>
-          {m.id.split("/").pop()} · {m.workers.length} GPU
+          {m.id.split("/").pop()} - {m.workers.length} GPU
         </option>
       ))}
     </select>

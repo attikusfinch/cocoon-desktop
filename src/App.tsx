@@ -20,6 +20,18 @@ import { NetworkPanel } from "./components/NetworkPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { Spinner } from "./components/ui";
 
+const PINNED_CHATS_KEY = "cocoon:pinned-chat-ids";
+
+function loadPinnedChatIds(): string[] {
+  try {
+    const raw = localStorage.getItem(PINNED_CHATS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function App() {
   const [state, setState] = useState<AppState | null>(null);
   const [online, setOnline] = useState<boolean | null>(null);
@@ -30,6 +42,7 @@ export default function App() {
   const [chat, setChat] = useState<ChatDoc | null>(null);
   const [view, setView] = useState<View>("chat");
   const [pendingBackup, setPendingBackup] = useState<WalletBackup | null>(null);
+  const [pinnedChatIds, setPinnedChatIds] = useState<string[]>(loadPinnedChatIds);
 
   const ready = (stats?.proxy_connections ?? []).some((p) => p.is_ready);
   const connecting = state?.engine.running === true && !ready;
@@ -83,6 +96,16 @@ export default function App() {
   useEffect(() => {
     if (online) refreshChats();
   }, [online, refreshChats]);
+
+  useEffect(() => {
+    localStorage.setItem(PINNED_CHATS_KEY, JSON.stringify(pinnedChatIds));
+  }, [pinnedChatIds]);
+
+  useEffect(() => {
+    if (chats.length === 0) return;
+    const existing = new Set(chats.map((c) => c.id));
+    setPinnedChatIds((ids) => ids.filter((id) => existing.has(id)));
+  }, [chats]);
 
   // The runner auto-starts the engine on boot when a config exists, but in
   // the very first session the config appears only after onboarding — kick
@@ -147,11 +170,16 @@ export default function App() {
     (id: string) => {
       deleteChat(id).then(() => {
         refreshChats();
+        setPinnedChatIds((ids) => ids.filter((pinnedId) => pinnedId !== id));
         setChat((cur) => (cur?.id === id ? null : cur));
       }, () => {});
     },
     [refreshChats],
   );
+
+  const togglePinChat = useCallback((id: string) => {
+    setPinnedChatIds((ids) => (ids.includes(id) ? ids.filter((pinnedId) => pinnedId !== id) : [id, ...ids]));
+  }, []);
 
   const newChat = useCallback(() => {
     setView("chat");
@@ -199,10 +227,12 @@ export default function App() {
         ready={ready}
         connecting={connecting}
         chats={chats}
+        pinnedChatIds={pinnedChatIds}
         currentChatId={chat?.id ?? null}
         view={view}
         onNewChat={newChat}
         onOpenChat={openChat}
+        onTogglePinChat={togglePinChat}
         onDeleteChat={removeChat}
         onView={setView}
       />
