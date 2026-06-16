@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { formatNanoTON } from "../api";
 import type { AppState, ChatSummary } from "../types";
 import logo from "../assets/egg.png";
@@ -9,16 +10,35 @@ type Props = {
   ready: boolean;
   connecting: boolean;
   chats: ChatSummary[];
+  pinnedChatIds: string[];
   currentChatId: string | null;
   view: View;
   onNewChat: () => void;
   onOpenChat: (id: string) => void;
+  onTogglePinChat: (id: string) => void;
   onDeleteChat: (id: string) => void;
   onView: (v: View) => void;
 };
 
 export function Sidebar(props: Props) {
   const balance = props.state?.wallet?.balance_nano;
+  const [query, setQuery] = useState("");
+
+  const pinned = useMemo(() => new Set(props.pinnedChatIds), [props.pinnedChatIds]);
+  const filteredChats = useMemo(() => {
+    const q = query.trim().toLocaleLowerCase();
+    return props.chats
+      .filter((c) => {
+        if (!q) return true;
+        return `${c.title} ${c.model ?? ""}`.toLocaleLowerCase().includes(q);
+      })
+      .sort((a, b) => {
+        const ap = pinned.has(a.id);
+        const bp = pinned.has(b.id);
+        if (ap !== bp) return ap ? -1 : 1;
+        return b.updated_at - a.updated_at;
+      });
+  }, [props.chats, pinned, query]);
 
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col border-r border-ink-800 bg-ink-900">
@@ -28,8 +48,8 @@ export function Sidebar(props: Props) {
         <span className="text-[15px] font-semibold tracking-tight">Cocoon</span>
       </div>
 
-      {/* New chat */}
-      <div className="px-3 pb-2 pt-1">
+      {/* New chat and search */}
+      <div className="space-y-2 px-3 pb-2 pt-1">
         <button
           type="button"
           onClick={props.onNewChat}
@@ -37,6 +57,32 @@ export function Sidebar(props: Props) {
         >
           <span className="text-accent-400">+</span> Новый чат
         </button>
+        <label className="relative block">
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-faint">
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.9">
+              <circle cx="11" cy="11" r="6.5" />
+              <path d="m16 16 4 4" strokeLinecap="round" />
+            </svg>
+          </span>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Поиск чатов"
+            className="h-9 w-full rounded-lg border border-ink-700 bg-ink-950/45 pl-8 pr-8 text-[13px] text-fg outline-none transition-colors placeholder:text-fg-faint focus:border-accent-500/60"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              title="Очистить поиск"
+              className="absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-fg-faint transition-colors hover:bg-ink-700 hover:text-fg"
+            >
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="m7 7 10 10M17 7 7 17" strokeLinecap="round" />
+              </svg>
+            </button>
+          )}
+        </label>
       </div>
 
       {/* Chat list */}
@@ -44,8 +90,12 @@ export function Sidebar(props: Props) {
         {props.chats.length === 0 && (
           <div className="px-3 py-2 text-xs text-fg-faint">История пуста</div>
         )}
-        {props.chats.map((c) => {
+        {props.chats.length > 0 && filteredChats.length === 0 && (
+          <div className="px-3 py-2 text-xs text-fg-faint">Ничего не найдено</div>
+        )}
+        {filteredChats.map((c) => {
           const active = props.view === "chat" && c.id === props.currentChatId;
+          const pinnedChat = pinned.has(c.id);
           return (
             <div
               key={c.id}
@@ -60,6 +110,29 @@ export function Sidebar(props: Props) {
                 title={c.title}
               >
                 <span className={active ? "text-fg" : ""}>{c.title}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => props.onTogglePinChat(c.id)}
+                title={pinnedChat ? "Открепить чат" : "Закрепить чат"}
+                className={`mr-0.5 h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-ink-600 ${
+                  pinnedChat ? "flex text-accent-300" : "hidden text-fg-faint hover:text-fg group-hover:flex"
+                }`}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-3.5 w-3.5"
+                  fill={pinnedChat ? "currentColor" : "none"}
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                >
+                  <path
+                    d="M14.5 3.8 20.2 9.5l-3.1.9-3.7 3.7.3 4.7-1.1 1.1-4.1-4.1-4.1-4.1 1.1-1.1 4.7.3 3.7-3.7.6-3.4Z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path d="m8.5 15.5-4.2 4.2" strokeLinecap="round" />
+                </svg>
               </button>
               <button
                 type="button"
@@ -79,7 +152,7 @@ export function Sidebar(props: Props) {
       {/* Bottom nav */}
       <div className="shrink-0 border-t border-ink-800 p-2">
         <NavItem
-          label="Кошелёк"
+          label="Кошелек"
           active={props.view === "wallet"}
           onClick={() => props.onView("wallet")}
           trailing={balance !== undefined ? `${formatNanoTON(balance)} TON` : undefined}

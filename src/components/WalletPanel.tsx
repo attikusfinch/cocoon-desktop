@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { channelRequest, formatNanoTON, getBackup, shortAddress } from "../api";
-import type { AppState, ChannelState, RunnerStats, WalletBackup } from "../types";
+import type { AppState, ChannelState, ProxyChannel, RunnerStats, WalletBackup } from "../types";
 import { BackupReveal } from "./Onboarding";
 import { FundingCard } from "./Funding";
 import { Button, Card, CopyButton, ErrorNote, Mono, Pill, SectionTitle } from "./ui";
@@ -12,6 +12,29 @@ type Props = {
 
 const channelStateName = (s: number) =>
   s === 0 ? "активен" : s === 1 ? "закрывается" : s === 2 ? "закрыт" : `состояние ${s}`;
+
+function canWithdrawSurplus(ch?: ChannelState): boolean {
+  if (!ch?.active) return false;
+  try {
+    return BigInt(ch.balance_nano) > BigInt(ch.stake_nano);
+  } catch {
+    return false;
+  }
+}
+
+function explainChannelError(err: unknown): string {
+  const msg = String(err instanceof Error ? err.message : err);
+  if (msg.includes("1001")) {
+    return "Контракт вернул 1001: свободного остатка для вывода нет или смарт-контракту не хватает TON на комиссию. Если баланс канала равен стейку, сначала закрывайте канал, а не снимайте излишек.";
+  }
+  if (msg.includes("1011")) {
+    return "Контракт вернул 1011: канал еще не разблокирован для финального возврата. Нужно подождать delay закрытия и нажать завершение возврата позже.";
+  }
+  if (msg.includes("1006")) {
+    return "Контракт вернул 1006: операция недоступна для текущего состояния канала.";
+  }
+  return msg;
+}
 
 export function WalletPanel(props: Props) {
   const wallet = props.state?.wallet;
@@ -25,10 +48,10 @@ export function WalletPanel(props: Props) {
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto flex max-w-3xl flex-col gap-4 px-5 py-6">
-        <h1 className="text-lg font-semibold">Кошелёк</h1>
+        <h1 className="text-lg font-semibold">Кошелек</h1>
 
         {!wallet ? (
-          <Card className="p-5 text-sm text-fg-muted">Кошелёк ещё не создан.</Card>
+          <Card className="p-5 text-sm text-fg-muted">Кошелек еще не создан.</Card>
         ) : (
           <>
             <Card className="p-5">
@@ -69,7 +92,11 @@ export function WalletPanel(props: Props) {
                   Показать recovery-фразу
                 </Button>
               </div>
-              {backupErr && <div className="mt-3"><ErrorNote>{backupErr}</ErrorNote></div>}
+              {backupErr && (
+                <div className="mt-3">
+                  <ErrorNote>{backupErr}</ErrorNote>
+                </div>
+              )}
             </Card>
 
             {wallet.funded === false && !wallet.channel?.active && <FundingCard wallet={wallet} />}
@@ -106,9 +133,9 @@ function ChannelsCard(props: { stats: RunnerStats | null; stateChannel?: Channel
     setNotice(null);
     try {
       await channelRequest(verb, sc);
-      setNotice("Транзакция отправлена — статус обновится после подтверждения в блокчейне.");
+      setNotice("Транзакция отправлена. Статус обновится после подтверждения в блокчейне.");
     } catch (e) {
-      setError(String(e instanceof Error ? e.message : e));
+      setError(explainChannelError(e));
     } finally {
       setBusyKey(null);
     }
@@ -116,83 +143,126 @@ function ChannelsCard(props: { stats: RunnerStats | null; stateChannel?: Channel
 
   return (
     <Card className="p-5">
-      <SectionTitle>Платёжные каналы</SectionTitle>
+      <SectionTitle>Платежные каналы</SectionTitle>
       <p className="mt-1.5 text-[13px] leading-relaxed text-fg-muted">
-        Канал — это смарт-контракт со стейком, через который оплачиваются запросы
-        к прокси. «Закрыть» запрашивает возврат средств, «Вывести» доступно после
-        закрытия.
+        Канал держит стейк и оплачивает запросы к прокси. «Снять излишек» работает только когда баланс канала выше
+        стейка. Для возврата стейка сначала закройте канал, затем после задержки завершите возврат.
       </p>
 
       {channels.length === 0 && props.stateChannel ? (
-        <div className="mt-4 rounded-lg border border-ink-700 bg-ink-900 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <Mono className="truncate">{shortAddress(props.stateChannel.address, 10, 8)}</Mono>
-            <Pill tone={props.stateChannel.active ? "ok" : "muted"}>
-              {props.stateChannel.active ? "активен" : props.stateChannel.state}
-            </Pill>
-          </div>
+        <ChannelCard
+          address={props.stateChannel.address}
+          stateChannel={props.stateChannel}
+          busyKey={busyKey}
+          onRun={run}
+        />
+      ) : channels.length === 0 ? (
+        <div className="mt-3 text-[13px] text-fg-faint">
+          Каналов пока нет. Они создаются автоматически при первом подключении к прокси.
+        </div>
+      ) : (
+        <div className="mt-4 flex flex-col gap-3">
+          {channels.map((ch, index) => (
+            <ChannelCard
+              key={ch.sc_address}
+              address={ch.sc_address}
+              proxyChannel={ch}
+              stateChannel={index === 0 ? props.stateChannel : undefined}
+              busyKey={busyKey}
+              onRun={run}
+            />
+          ))}
+        </div>
+      )}
+      {notice && <div className="mt-3 text-[13px] text-ok">{notice}</div>}
+      {error && (
+        <div className="mt-3">
+          <ErrorNote>{error}</ErrorNote>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function ChannelCard(props: {
+  address: string;
+  proxyChannel?: ProxyChannel;
+  stateChannel?: ChannelState;
+  busyKey: string | null;
+  onRun: (verb: "topup" | "close" | "withdraw", sc: string) => Promise<void>;
+}) {
+  const state = props.stateChannel
+    ? props.stateChannel.active
+      ? 0
+      : props.stateChannel.state === "closing"
+        ? 1
+        : props.stateChannel.state === "closed"
+          ? 2
+          : props.proxyChannel?.state ?? 0
+    : props.proxyChannel?.state ?? 0;
+  const withdrawable = canWithdrawSurplus(props.stateChannel);
+  const closeLabel = state === 1 ? "Завершить возврат" : "Закрыть канал";
+
+  return (
+    <div className="mt-4 rounded-lg border border-ink-700 bg-ink-900 p-4 first:mt-0">
+      <div className="flex items-center justify-between gap-3">
+        <Mono className="truncate">{shortAddress(props.address, 10, 8)}</Mono>
+        <Pill tone={state === 0 ? "ok" : state === 1 ? "warn" : "muted"}>{channelStateName(state)}</Pill>
+      </div>
+
+      {props.stateChannel ? (
+        <>
           <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-[12.5px] text-fg-muted sm:grid-cols-3">
             <Stat label="баланс канала" value={`${props.stateChannel.balance_ton} TON`} />
             <Stat label="стейк" value={`${props.stateChannel.stake_ton} TON`} />
             <Stat label="израсходовано токенов" value={props.stateChannel.tokens_used.toLocaleString()} />
           </div>
-          <p className="mt-3 text-xs text-fg-faint">
-            Управление каналом (пополнение, закрытие, вывод) станет доступно после подключения к сети.
-          </p>
+          {!withdrawable && state === 0 && (
+            <p className="mt-3 text-xs text-fg-faint">
+              Свободного остатка нет: баланс канала равен стейку. Чтобы вернуть стейк, используйте закрытие канала.
+            </p>
+          )}
+        </>
+      ) : props.proxyChannel ? (
+        <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-[12.5px] text-fg-muted sm:grid-cols-4">
+          <Stat label="использовано" value={props.proxyChannel.tokens_used_proxy_committed_to_db.toLocaleString()} />
+          <Stat label="лимит" value={props.proxyChannel.tokens_used_proxy_max.toLocaleString()} />
+          <Stat label="списано" value={props.proxyChannel.tokens_charged.toLocaleString()} />
+          <Stat label="оплачено" value={props.proxyChannel.tokens_payed.toLocaleString()} />
         </div>
-      ) : channels.length === 0 ? (
-        <div className="mt-3 text-[13px] text-fg-faint">
-          Каналов пока нет — они создаются автоматически при первом подключении к прокси.
-        </div>
-      ) : (
-        <div className="mt-4 flex flex-col gap-3">
-          {channels.map((ch) => (
-            <div key={ch.sc_address} className="rounded-lg border border-ink-700 bg-ink-900 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <Mono className="truncate">{shortAddress(ch.sc_address, 10, 8)}</Mono>
-                <Pill tone={ch.state === 0 ? "ok" : ch.state === 1 ? "warn" : "muted"}>
-                  {channelStateName(ch.state)}
-                </Pill>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-[12.5px] text-fg-muted sm:grid-cols-4">
-                <Stat label="использовано" value={ch.tokens_used_proxy_committed_to_db.toLocaleString()} />
-                <Stat label="лимит" value={ch.tokens_used_proxy_max.toLocaleString()} />
-                <Stat label="списано" value={ch.tokens_charged.toLocaleString()} />
-                <Stat label="оплачено" value={ch.tokens_payed.toLocaleString()} />
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button
-                  kind="ghost"
-                  className="!px-3 !py-1.5 text-xs"
-                  busy={busyKey === `topup:${ch.sc_address}`}
-                  onClick={() => void run("topup", ch.sc_address)}
-                >
-                  Пополнить (+1 TON)
-                </Button>
-                <Button
-                  kind="ghost"
-                  className="!px-3 !py-1.5 text-xs"
-                  busy={busyKey === `close:${ch.sc_address}`}
-                  onClick={() => void run("close", ch.sc_address)}
-                >
-                  Закрыть канал
-                </Button>
-                <Button
-                  kind="ghost"
-                  className="!px-3 !py-1.5 text-xs"
-                  busy={busyKey === `withdraw:${ch.sc_address}`}
-                  onClick={() => void run("withdraw", ch.sc_address)}
-                >
-                  Вывести
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      {notice && <div className="mt-3 text-[13px] text-ok">{notice}</div>}
-      {error && <div className="mt-3"><ErrorNote>{error}</ErrorNote></div>}
-    </Card>
+      ) : null}
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button
+          kind="ghost"
+          className="!px-3 !py-1.5 text-xs"
+          disabled={state !== 0}
+          busy={props.busyKey === `topup:${props.address}`}
+          onClick={() => void props.onRun("topup", props.address)}
+        >
+          Пополнить (+1 TON)
+        </Button>
+        <Button
+          kind="ghost"
+          className="!px-3 !py-1.5 text-xs"
+          disabled={state === 2}
+          busy={props.busyKey === `close:${props.address}`}
+          onClick={() => void props.onRun("close", props.address)}
+        >
+          {closeLabel}
+        </Button>
+        <Button
+          kind="ghost"
+          className="!px-3 !py-1.5 text-xs"
+          disabled={!withdrawable}
+          title={withdrawable ? "Снять баланс сверх стейка" : "Нет свободного остатка сверх стейка"}
+          busy={props.busyKey === `withdraw:${props.address}`}
+          onClick={() => void props.onRun("withdraw", props.address)}
+        >
+          Снять излишек
+        </Button>
+      </div>
+    </div>
   );
 }
 
